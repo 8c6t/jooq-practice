@@ -1,0 +1,114 @@
+buildscript {
+    ext {
+        jooqVersion = '3.19.22'
+    }
+}
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.jooq.jooq-codegen-gradle' version '3.19.22'
+}
+
+group = 'com.hachicore.demo'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src/main/java", "build/generated-src/jooq/main"]
+        }
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    jooqCodegen project(':jooq-custom')
+    jooqCodegen 'com.mysql:mysql-connector-j'
+    jooqCodegen 'org.jooq:jooq'
+    jooqCodegen 'org.jooq:jooq-meta'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+String dbUser   = System.properties["db-user"]   ?: "root"
+String dbPasswd = System.properties["db-passwd"] ?: "passwd"
+
+jooq {
+    executions {
+        sakilaDB {
+            configuration {
+                jdbc {
+                    driver = 'com.mysql.cj.jdbc.Driver'
+                    url = 'jdbc:mysql://localhost:3306'
+                    user = "${dbUser}"
+                    password = "${dbPasswd}"
+                }
+
+                generator {
+                    name = 'org.jooq.codegen.DefaultGenerator'
+                    database {
+                        name = 'org.jooq.meta.mysql.MySQLDatabase'
+                        unsignedTypes = true
+                        inputSchema = 'sakila'
+                        forcedTypes {
+                            forcedType {
+                                userType = 'java.lang.Long'
+                                includeTypes = 'int unsigned'
+                            }
+
+                            forcedType {
+                                userType = 'java.lang.Integer'
+                                includeTypes = 'tinyint unsigned'
+                            }
+
+                            forcedType {
+                                userType = 'java.lang.Integer'
+                                includeTypes = 'smallint unsigned'
+                            }
+                        }
+                    }
+
+                    generate {
+                        daos = true
+                        records = true
+                        fluentSetters = true
+                        javaTimeTypes = true
+                        deprecated = false
+                    }
+
+                    target {
+                        packageName = 'com.hachicore.demo.jooq'
+                        directory = 'build/generated-src/jooq/main'
+                    }
+
+                    strategy {
+                        name = 'com.hachicore.demo.jooq.generator.JPrefixGeneratorStrategy'
+                    }
+                }
+            }
+        }
+    }
+}
