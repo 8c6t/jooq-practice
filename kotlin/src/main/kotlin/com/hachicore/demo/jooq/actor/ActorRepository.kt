@@ -114,7 +114,7 @@ class ActorRepository(
             ).values(
                 actor.firstName,
                 actor.lastName
-            ).returning(ACTOR)
+            ).returning(*ACTOR.fields())
             .fetchOneInto(Actor::class.java)
     }
 
@@ -128,6 +128,50 @@ class ActorRepository(
             )
             .valuesOfRows(rows)
             .execute()
+    }
+
+    fun update(actor: Actor) {
+        actorDao.update(actor)
+    }
+
+    fun findByActorId(actorId: Long): Actor? {
+        return actorDao.findById(actorId)
+    }
+
+    fun updateWithDto(actorId: Long, request: ActorUpdateRequest): Int {
+        val firstName = if (!request.firstName.isNullOrBlank()) DSL.`val`(request.firstName) else DSL.noField(ACTOR.FIRST_NAME)
+        val lastName = if (!request.lastName.isNullOrBlank()) DSL.`val`(request.lastName) else DSL.noField(ACTOR.LAST_NAME)
+
+        return dslContext.update(ACTOR)
+            .set(ACTOR.FIRST_NAME, firstName)
+            .set(ACTOR.LAST_NAME, lastName)
+            .where(ACTOR.ACTOR_ID.eq(actorId))
+            .execute()
+    }
+
+    fun updateWithRecord(actorId: Long, request: ActorUpdateRequest): Int {
+        val actorRecord = dslContext.fetchOne(ACTOR, ACTOR.ACTOR_ID.eq(actorId)) ?: throw RuntimeException()
+
+        if (!request.firstName.isNullOrBlank()) {
+            actorRecord.firstName = request.firstName
+        }
+
+        if (!request.lastName.isNullOrBlank()) {
+            actorRecord.lastName = request.lastName
+        }
+
+        return actorRecord.update()
+    }
+
+    fun delete(actorId: Long): Int {
+        return dslContext.deleteFrom(ACTOR)
+            .where(ACTOR.ACTOR_ID.eq(actorId))
+            .execute()
+    }
+
+    fun deleteWithActiveRecord(actorId: Long): Int {
+        val actorRecord = dslContext.fetchOne(ACTOR, ACTOR.ACTOR_ID.eq(actorId)) ?: throw RuntimeException()
+        return actorRecord.delete()
     }
 
 }

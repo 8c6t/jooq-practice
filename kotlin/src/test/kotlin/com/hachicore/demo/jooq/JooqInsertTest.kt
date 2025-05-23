@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import java.util.List
 
 @SpringBootTest
 class JooqInsertTest(
