@@ -6,6 +6,7 @@ import com.hachicore.demo.jooq.tables.JFilmActor
 import com.hachicore.demo.jooq.tables.daos.ActorDao
 import com.hachicore.demo.jooq.tables.pojos.Actor
 import com.hachicore.demo.jooq.tables.pojos.Film
+import com.hachicore.demo.jooq.tables.records.ActorRecord
 import com.hachicore.demo.jooq.utils.JooqListConditionUtil.Companion.inIfNotEmpty
 import org.jooq.Condition
 import org.jooq.Configuration
@@ -79,4 +80,54 @@ class ActorRepository(
         }
         return field.likeRegex(inputValue)
     }
+
+    fun saveByDao(actor: Actor): Actor {
+        actorDao.insert(actor)
+        return actor
+    }
+
+    fun saveByRecord(actor: Actor): ActorRecord {
+        val actorRecord = dslContext.newRecord(ACTOR, actor)
+        actorRecord.insert()
+        return actorRecord
+    }
+
+    fun saveWithReturningPkOnly(actor: Actor): Long? {
+        return dslContext
+            .insertInto(
+                ACTOR,
+                ACTOR.FIRST_NAME,
+                ACTOR.LAST_NAME
+            ).values(
+                actor.firstName,
+                actor.lastName
+            ).returningResult(ACTOR.ACTOR_ID)
+            .fetchOneInto(Long::class.java)
+    }
+
+    fun saveWithReturning(actor: Actor): Actor? {
+        return dslContext
+            .insertInto(
+                ACTOR,
+                ACTOR.FIRST_NAME,
+                ACTOR.LAST_NAME
+            ).values(
+                actor.firstName,
+                actor.lastName
+            ).returning(ACTOR)
+            .fetchOneInto(Actor::class.java)
+    }
+
+    fun bulkInsertWithRows(actorList: List<Actor>) {
+        val rows = actorList.map { DSL.row(it.firstName, it.lastName) }
+        dslContext
+            .insertInto(
+                ACTOR,
+                ACTOR.FIRST_NAME,
+                ACTOR.LAST_NAME
+            )
+            .valuesOfRows(rows)
+            .execute()
+    }
+
 }
