@@ -1,21 +1,23 @@
 buildscript {
     ext {
-        jooqVersion = '3.19.5'
+        jooqVersion = '3.19.22'
     }
 }
 
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.3'
-    id 'io.spring.dependency-management' version '1.1.4'
-    id 'nu.studer.jooq' version '9.0'
+    id 'org.springframework.boot' version '3.4.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.jooq.jooq-codegen-gradle' version '3.19.22'
 }
 
-group = 'org.sight'
+group = 'com.hachicore.demo'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '17'
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 repositories {
@@ -31,24 +33,20 @@ sourceSets {
 }
 
 dependencies {
-    implementation "org.jooq:jooq:${jooqVersion}"
-
-    jooqGenerator project(':jooq-custom')
-    jooqGenerator "org.jooq:jooq:${jooqVersion}"
-    jooqGenerator "org.jooq:jooq-meta:${jooqVersion}"
-
-    implementation 'org.springframework.boot:spring-boot-starter'
-    implementation ('org.springframework.boot:spring-boot-starter-jooq') {
-        exclude group: 'org.jooq'
-    }
-
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
     runtimeOnly 'com.mysql:mysql-connector-j'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    jooqCodegen project(':jooq-custom')
+    jooqCodegen 'com.mysql:mysql-connector-j'
+    jooqCodegen 'org.jooq:jooq'
+    jooqCodegen 'org.jooq:jooq-meta'
 }
 
 tasks.named('test') {
@@ -59,10 +57,9 @@ String dbUser   = System.properties["db-user"]   ?: "root"
 String dbPasswd = System.properties["db-passwd"] ?: "passwd"
 
 jooq {
-    version = "${jooqVersion}"
-    configurations {
+    executions {
         sakilaDB {
-            generationTool {
+            configuration {
                 jdbc {
                     driver = 'com.mysql.cj.jdbc.Driver'
                     url = 'jdbc:mysql://localhost:3306'
@@ -72,15 +69,10 @@ jooq {
 
                 generator {
                     name = 'org.jooq.codegen.DefaultGenerator'
-
                     database {
                         name = 'org.jooq.meta.mysql.MySQLDatabase'
                         unsignedTypes = true
-                        schemata {
-                            schema {
-                                inputSchema = 'sakila'
-                            }
-                        }
+                        inputSchema = 'sakila'
                         forcedTypes {
                             forcedType {
                                 userType = 'java.lang.Long'
@@ -112,8 +104,9 @@ jooq {
                         directory = 'build/generated-src/jooq/main'
                     }
 
-                    // jooq-custom 내부의 설정
-                    strategy.name = 'com.hachicore.demo.jooq.generator.JPrefixGeneratorStrategy'
+                    strategy {
+                        name = 'com.hachicore.demo.jooq.generator.JPrefixGeneratorStrategy'
+                    }
                 }
             }
         }

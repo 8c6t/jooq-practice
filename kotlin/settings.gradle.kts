@@ -3,3 +3,4 @@ plugins {
 }
 rootProject.name = "jooq"
 include("jooq-custom")
+include("entity")

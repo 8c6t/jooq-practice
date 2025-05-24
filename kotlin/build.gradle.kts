@@ -1,5 +1,6 @@
-import org.jooq.meta.jaxb.ForcedType
-import org.jooq.meta.jaxb.Logging
+import org.jooq.meta.jaxb.*
+import dev.monosoul.jooq.RecommendedVersions
+import kotlinx.coroutines.withContext
 
 val jooqVersion: String by extra("3.19.22")
 
@@ -9,7 +10,7 @@ plugins {
     id("org.springframework.boot") version "3.4.5"
     id("io.spring.dependency-management") version "1.1.7"
 
-    id("org.jooq.jooq-codegen-gradle") version "3.19.22"
+    id("dev.monosoul.jooq-docker") version "7.0.10"
 }
 
 group = "com.hachicore.demo"
@@ -35,9 +36,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     jooqCodegen(project(":jooq-custom"))
-    jooqCodegen("com.mysql:mysql-connector-j")
-    jooqCodegen("org.jooq:jooq")
-    jooqCodegen("org.jooq:jooq-meta")
+    jooqCodegen("org.jooq:jooq:$jooqVersion")
+    jooqCodegen("org.jooq:jooq-meta:$jooqVersion")
+    jooqCodegen("org.jooq:jooq-codegen:$jooqVersion")
+
+    jooqCodegen("org.flywaydb:flyway-core:${RecommendedVersions.FLYWAY_VERSION}")
+    jooqCodegen("org.flywaydb:flyway-mysql:${RecommendedVersions.FLYWAY_VERSION}")
 }
 
 kotlin {
@@ -54,57 +58,59 @@ var dbUser     = System.getProperty("db-user")    ?: "root"
 var dbPasswd   = System.getProperty("db-passwd")  ?: "passwd"
 
 jooq {
-    executions {
-        create("sakilaDB") {
-            configuration {
-                logging = Logging.WARN
-                jdbc {
-                    driver = "com.mysql.cj.jdbc.Driver"
-                    url = "jdbc:mysql://localhost:3306"
-                    user = dbUser
-                    password = dbPasswd
-                }
+    withContainer {
+        image {
+            name = "mysql:8.0.29"
+            envVars = mapOf(
+                "MYSQL_ROOT_PASSWORD"   to "passwd",
+                "MYSQL_DATABASE"        to "sakila"
+            )
+        }
 
-                generator {
-                    name = "org.jooq.codegen.KotlinGenerator"
-                    database {
-                        name = "org.jooq.meta.mysql.MySQLDatabase"
-                        isUnsignedTypes = true
-                        inputSchema = "sakila"
-                        forcedTypes = listOf(
-                            ForcedType().apply {
-                                userType = "java.lang.Long"
-                                includeTypes = "int unsigned"
-                            },
-                            ForcedType().apply {
-                                userType = "java.lang.Integer"
-                                includeTypes = "tinyint unsigned"
-                            },
-                            ForcedType().apply {
-                                userType = "java.lang.Integer"
-                                includeTypes = "smallint unsigned"
-                            }
-                        )
-                    }
-
-                    generate {
-                        isDaos = true
-                        isRecords = true
-                        isFluentSetters = true
-                        isJavaTimeTypes = true
-                        isDeprecated = false
-                    }
-
-                    target {
-                        packageName = "com.hachicore.demo.jooq"
-                        directory = "build/generated-src/jooq/main"
-                    }
-
-                    strategy {
-                        name = "com.hachicore.demo.jooq.generator.JPrefixGeneratorStrategy"
-                    }
-                }
+        db {
+            username = "root"
+            password = "passwd"
+            name = "sakila"
+            port = 3306
+            jdbc {
+                schema = "jdbc:mysql"
+                driverClassName = "com.mysql.cj.jdbc.Driver"
             }
+        }
+    }
+}
+
+
+tasks {
+    generateJooqClasses {
+        schemas.set(listOf("sakila"))
+        basePackageName.set("com.hachicore.demo.jooq")
+        outputDirectory.set(project.layout.projectDirectory.dir("build/generated-src/jooq/main"))
+        includeFlywayTable.set(false)
+
+        usingJavaConfig {
+            generate = Generate()
+                .withJavaTimeTypes(true)
+                .withDeprecated(false)
+                .withDaos(true)
+                .withFluentSetters(true)
+                .withRecords(true)
+
+            withStrategy(
+                Strategy().withName("com.hachicore.demo.jooq.generator.JPrefixGeneratorStrategy")
+            )
+
+            database.withForcedTypes(
+                ForcedType()
+                    .withUserType("java.lang.Long")
+                    .withTypes("int unsigned"),
+               ForcedType()
+                    .withUserType("java.lang.Integer")
+                    .withTypes("tinyint unsigned"),
+                ForcedType()
+                    .withUserType("java.lang.Integer")
+                    .withTypes("smallint unsigned")
+            )
         }
     }
 }
