@@ -59,6 +59,36 @@ class FilmRepository(
             .fetchInto(FilmWithActor::class.java)
     }
 
+    fun findFilmWithActorListImplicitPathJoin(page: Long, pageSize: Long): List<FilmWithActor> {
+        val FILM_ACTOR = JFilmActor.FILM_ACTOR
+        return dslContext
+            .select(
+                FILM,
+                FILM_ACTOR,
+                FILM_ACTOR.actor
+            )
+            .from(FILM)
+            .join(FILM_ACTOR)
+            .on(FILM.FILM_ID.eq(FILM_ACTOR.FILM_ID))
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .fetchInto(FilmWithActor::class.java)
+    }
+
+    fun findFilmWithActorListExplicitPathJoin(page: Long, pageSize: Long): List<FilmWithActor> {
+        return dslContext
+            .select(
+                FILM,
+                FILM.filmActor,
+                FILM.filmActor.actor
+            )
+            .from(FILM)
+            .join(FILM.filmActor())
+            .join(FILM.filmActor().actor())
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .fetchInto(FilmWithActor::class.java)
+    }
 }
 
 @Repository

@@ -17,6 +17,7 @@ class JooqConfig {
                 .settings()
                 .withExecuteDeleteWithoutWhere(ExecuteWithoutWhere.THROW)
                 .withExecuteUpdateWithoutWhere(ExecuteWithoutWhere.THROW)
+                .withMapConstructorParameterNamesInKotlin(false)
                 .withRenderSchema(false)
         }
 
