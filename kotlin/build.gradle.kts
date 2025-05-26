@@ -89,6 +89,7 @@ tasks {
         includeFlywayTable.set(false)
 
         usingJavaConfig {
+            name = "org.jooq.codegen.KotlinGenerator"
             generate = Generate()
                 .withJavaTimeTypes(true)
                 .withDeprecated(false)
